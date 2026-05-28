@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>视频号视频信息查询</title>
+  <title>Video Info Query</title>
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="icon" type="image/png" href="/icon.png">
   <style>
@@ -17,7 +17,7 @@
     }
     .container { max-width: 800px; margin: 0 auto; }
     h1 { font-size: 20px; margin-bottom: 20px; text-align: center; }
-    .input-row { display: flex; gap: 8px; margin-bottom: 20px; }
+    .input-row { display: flex; gap: 8px; margin-bottom: 16px; }
     .input-row input {
       flex: 1;
       padding: 10px 14px;
@@ -39,6 +39,66 @@
     }
     .input-row button:hover { background: #06ad56; }
     .input-row button:disabled { background: #a0d9b8; cursor: not-allowed; }
+    
+    /* Cookie Section */
+    .cookie-section {
+      background: #fffbe6;
+      border: 1px solid #ffe58f;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+    .cookie-section.hidden { display: none; }
+    .cookie-section.valid { background: #f6ffed; border-color: #b7eb8f; }
+    .cookie-section.error { background: #fff2f0; border-color: #ffccc7; }
+    .cookie-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .cookie-header strong { font-size: 14px; color: #333; }
+    .cookie-status {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .cookie-status.ok { background: #52c41a; color: #fff; }
+    .cookie-status.expired { background: #ff4d4f; color: #fff; }
+    .cookie-input-area {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cookie-input-area textarea {
+      width: 100%;
+      height: 80px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: monospace;
+      resize: vertical;
+      outline: none;
+    }
+    .cookie-input-area textarea:focus { border-color: #07c160; }
+    .cookie-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .cookie-actions button {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-save { background: #07c160; color: #fff; }
+    .btn-save:hover { background: #06ad56; }
+    .btn-toggle { background: #999; color: #fff; }
+    .btn-toggle:hover { background: #777; }
+
     .status { text-align: center; color: #999; font-size: 14px; margin-bottom: 16px; }
     .status.error { color: #e74c3c; }
     .result {
@@ -55,19 +115,11 @@
       font-size: 14px;
     }
     .result-body { padding: 20px; }
-    /* 视频预览卡片 */
+    /* Video Card */
     .video-card {
       display: flex;
       gap: 16px;
       margin-bottom: 20px;
-    }
-    .video-card .cover {
-      width: 180px;
-      height: 320px;
-      border-radius: 8px;
-      object-fit: cover;
-      background: #000;
-      cursor: pointer;
     }
     .video-card video {
       width: 320px;
@@ -107,9 +159,7 @@
       height: 36px;
       border-radius: 50%;
     }
-    .video-card .meta .author .name {
-      font-weight: 600;
-    }
+    .video-card .meta .author .name { font-weight: 600; }
     .video-card .meta .desc {
       color: #666;
       line-height: 1.6;
@@ -127,7 +177,7 @@
       font-size: 13px;
       word-break: break-all;
     }
-    /* JSON 区域 */
+    /* JSON Section */
     details.json-section { margin-top: 4px; }
     details.json-section summary {
       padding: 10px 20px;
@@ -152,26 +202,41 @@
       font-size: 13px;
       color: #999;
     }
-    .footer a {
-      color: #07c160;
-      text-decoration: none;
-    }
-    .footer a:hover {
-      text-decoration: underline;
-    }
+    .footer a { color: #07c160; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>视频号视频信息查询</h1>
+    <h1>WX Channels Video Query</h1>
+
+    <!-- Cookie Management -->
+    <div id="cookieSection" class="cookie-section valid">
+      <div class="cookie-header">
+        <strong>Cookie Status</strong>
+        <span id="cookieStatusBadge" class="cookie-status ok">Valid</span>
+      </div>
+      <div class="cookie-input-area">
+        <textarea 
+          id="cookieInput" 
+          placeholder="Paste new cookie here, then click Update..."
+        ></textarea>
+        <div class="cookie-actions">
+          <button class="btn-toggle" onclick="toggleCookieInput()">Show/Hide</button>
+          <button class="btn-save" onclick="updateCookie()">Update Cookie</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- URL Input -->
     <div class="input-row">
       <input
         id="urlInput"
         type="text"
-        placeholder="粘贴视频号分享链接，如 https://weixin.qq.com/sph/xxx"
+        placeholder="Paste video link here, e.g. https://weixin.qq.com/sph/xxx"
         autofocus
       >
-      <button id="fetchBtn" onclick="doFetch()">查询</button>
+      <button id="fetchBtn" onclick="doFetch()">Query</button>
     </div>
     <div id="status" class="status" hidden></div>
     <div id="result" hidden></div>
@@ -181,17 +246,82 @@
   </div>
 
   <script>
-    // 部署后改为你的 Worker 域名
     const API_BASE = "/api";
 
     const urlInput = document.getElementById("urlInput");
     const fetchBtn = document.getElementById("fetchBtn");
     const statusEl = document.getElementById("status");
     const resultEl = document.getElementById("result");
+    const cookieSection = document.getElementById("cookieSection");
+    const cookieStatusBadge = document.getElementById("cookieStatusBadge");
+    const cookieInput = document.getElementById("cookieInput");
 
     urlInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") doFetch();
     });
+
+    function toggleCookieInput() {
+      const textarea = cookieInput;
+      textarea.style.display = textarea.style.display === "none" ? "block" : "none";
+    }
+
+    async function updateCookie() {
+      const cookie = cookieInput.value.trim();
+      if (!cookie) {
+        showStatus("Please paste cookie first", "error");
+        return;
+      }
+      
+      try {
+        showStatus("Updating cookie...", "");
+        const resp = await fetch(`${API_BASE}/cookie/yuanbao`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cookie }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || data.code !== 0) throw new Error(data.msg || data.error || "Update failed");
+        
+        // Update UI
+        setCookieStatus(true);
+        showStatus("Cookie updated! Try query again.", "");
+        cookieInput.value = "";
+      } catch (err) {
+        showStatus("Update failed: " + err.message, "error");
+      }
+    }
+
+    function setCookieStatus(valid) {
+      if (valid) {
+        cookieSection.className = "cookie-section valid";
+        cookieStatusBadge.className = "cookie-status ok";
+        cookieStatusBadge.textContent = "Valid";
+      } else {
+        cookieSection.className = "cookie-section error";
+        cookieStatusBadge.className = "cookie-status expired";
+        cookieStatusBadge.textContent = "Expired / Invalid";
+      }
+    }
+
+    function isCookieInvalid(data) {
+      // Check for type: 2 error or empty data
+      try {
+        const innerData = data.data && (data.data.data || data.data);
+        const errMsg = innerData ? innerData.errMsg : null;
+        
+        // type === 2 means cookie invalid
+        if (errMsg && errMsg.type === 2) return true;
+        
+        // Check if video data is empty (no videoUrl)
+        if (innerData && innerData.feedInfo) {
+          const fi = innerData.feedInfo;
+          if (!fi.videoUrl && !fi.h264VideoInfo?.videoUrl && !fi.h265VideoInfo?.videoUrl) {
+            return true;
+          }
+        }
+      } catch(e) {}
+      return false;
+    }
 
     async function doFetch() {
       const shareUrl = urlInput.value.trim();
@@ -199,17 +329,25 @@
 
       fetchBtn.disabled = true;
       resultEl.hidden = true;
-      showStatus("查询中...", "");
+      showStatus("Querying...", "");
 
       try {
-        const resp = await fetch(`${API_BASE}/fetch_video_profile`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: shareUrl }),
-        });
+        const resp = await fetch(`${API_BASE}/channels/parse_sph?url=${encodeURIComponent(shareUrl)}`);
         const data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || resp.statusText);
-        showStatus("", "");
+        
+        if (!resp.ok || data.code !== 0) {
+          throw new Error(data.msg || data.error || resp.statusText);
+        }
+        
+        // Check cookie status
+        if (isCookieInvalid(data)) {
+          setCookieStatus(false);
+          showStatus("Cookie may be expired - please update below", "error");
+        } else {
+          setCookieStatus(true);
+          showStatus("", "");
+        }
+        
         renderResult(data);
       } catch (err) {
         showStatus(err.message, "error");
@@ -225,18 +363,17 @@
     }
 
     function renderResult(feed) {
-      const fi = feed.data && feed.data.feedInfo;
-      const ai = feed.data && feed.data.authorInfo;
+      const innerData = feed.data && (feed.data.data || feed.data);
+      const fi = innerData && innerData.feedInfo;
+      const ai = innerData && innerData.authorInfo;
 
-      let html = '<div class="result"><div class="result-header">查询结果</div><div class="result-body">';
+      let html = '<div class="result"><div class="result-header">Query Result</div><div class="result-body">';
 
       if (fi) {
         const bestVideoUrl = fi.h264VideoInfo?.videoUrl || fi.h265VideoInfo?.videoUrl || fi.videoUrl || "";
         html += '<div class="video-card">';
         if (bestVideoUrl) {
           html += `<video src="${esc(bestVideoUrl)}" poster="${esc(fi.coverUrl)}" controls preload="metadata"></video>`;
-        } else {
-          html += `<img class="cover" src="${esc(fi.coverUrl)}" alt="cover" onerror="this.style.display='none'">`;
         }
         html += '<div class="meta">';
         if (ai) {
@@ -248,41 +385,26 @@
         }
         if (fi.description) html += `<div class="desc">${esc(fi.description)}</div>`;
         html += '<div class="stats">';
-        if (fi.likeCountFmt) html += `<span>赞 ${esc(fi.likeCountFmt)}</span>`;
-        if (fi.favCountFmt) html += `<span>爱心 ${esc(fi.favCountFmt)}</span>`;
-        if (fi.forwardCountFmt) html += `<span>转发 ${esc(fi.forwardCountFmt)}</span>`;
-        if (fi.commentCountFmt) html += `<span>评论 ${esc(fi.commentCountFmt)}</span>`;
+        if (fi.likeCountFmt) html += `<span>Like ${esc(fi.likeCountFmt)}</span>`;
+        if (fi.favCountFmt) html += `<span>Heart ${esc(fi.favCountFmt)}</span>`;
+        if (fi.forwardCountFmt) html += `<span>Share ${esc(fi.forwardCountFmt)}</span>`;
+        if (fi.commentCountFmt) html += `<span>Comment ${esc(fi.commentCountFmt)}</span>`;
         html += '</div>';
-        if (bestVideoUrl) html += `<div><button class="download-btn" data-video-url="${esc(bestVideoUrl)}" data-desc="${esc(fi.description || '')}" data-createtime="${esc(fi.createtime || '')}" onclick="downloadVideoFromBtn(this)">下载视频</button> <button class="download-btn" data-video-url="${esc(bestVideoUrl)}" data-desc="${esc(fi.description || '')}" data-createtime="${esc(fi.createtime || '')}" onclick="downloadRawVideoFromBtn(this)">下载原始视频</button></div>`;
-        if (bestVideoUrl) html += `<div class="video-link"><a href="${esc(bestVideoUrl)}" target="_blank">${esc(bestVideoUrl)}</a></div>`;
+        if (bestVideoUrl) html += `<div><button class="download-btn" data-video-url="${esc(bestVideoUrl)}" data-desc="${esc(fi.description || '')}" data-createtime="${esc(fi.createtime || '')}" onclick="downloadVideoFromBtn(this)">Download Video</button></div>`;
+        if (bestVideoUrl) html += `<div class="video-link"><a href="${esc(bestVideoUrl)}" target="_blank">Video Link</a></div>`;
         html += '</div></div>';
       }
 
       html += '</div>';
 
-      // JSON 详情
-      html += '<details class="json-section"><summary>原始响应 JSON</summary>';
+      // JSON Detail
+      html += '<details class="json-section"><summary>Raw JSON Response</summary>';
       html += `<pre>${esc(JSON.stringify(feed, null, 2))}</pre>`;
       html += '</details>';
 
       html += '</div>';
       resultEl.innerHTML = html;
       resultEl.hidden = false;
-    }
-
-    function getRawVideoUrl(url) {
-      try {
-        var u = new URL(decodeURIComponent(url));
-        var filekey = u.searchParams.get("encfilekey");
-        var token = u.searchParams.get("token");
-        if (filekey && token) {
-          var newUrl = new URL(u.origin + u.pathname);
-          newUrl.searchParams.set("encfilekey", filekey);
-          newUrl.searchParams.set("token", token);
-          return newUrl.toString();
-        }
-      } catch (e) {}
-      return url;
     }
 
     function downloadVideoFromBtn(btn) {
@@ -293,19 +415,11 @@
       );
     }
 
-    function downloadRawVideoFromBtn(btn) {
-      downloadVideo(
-        getRawVideoUrl(btn.getAttribute("data-video-url")),
-        btn.getAttribute("data-desc"),
-        btn.getAttribute("data-createtime")
-      );
-    }
-
     async function downloadVideo(url, description, createtime) {
       try {
-        showStatus("下载中...", "");
+        showStatus("Downloading...", "");
         const resp = await fetch(url);
-        if (!resp.ok) throw new Error("下载失败");
+        if (!resp.ok) throw new Error("Download failed");
         const blob = await resp.blob();
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -317,7 +431,7 @@
         URL.revokeObjectURL(blobUrl);
         showStatus("", "");
       } catch (err) {
-        showStatus("下载失败: " + err.message, "error");
+        showStatus("Download failed: " + err.message, "error");
       }
     }
 
@@ -326,7 +440,7 @@
       if (createtime) {
         const d = new Date(Number(createtime) * 1000);
         const pad = (n) => String(n).padStart(2, "0");
-        return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.mp4`;
+        return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.mp4`;
       }
       return "";
     }

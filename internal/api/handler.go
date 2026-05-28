@@ -3,7 +3,6 @@ package api
 import (
 	"archive/zip"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -24,7 +23,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"wx_channel/internal/channels"
-	"wx_channel/internal/interceptor"
 	result "wx_channel/internal/util"
 	"wx_channel/pkg/system"
 )
@@ -780,35 +778,32 @@ func (c *APIClient) handleClearTasks(ctx *gin.Context) {
 }
 
 func (c *APIClient) handleIndex(ctx *gin.Context) {
-	read_asset := func(path string, defaultData []byte) string {
-		fullPath := filepath.Join("internal", "interceptor", path)
-		data, err := os.ReadFile(fullPath)
-		if err == nil {
-			return string(data)
-		}
-		return string(defaultData)
+	// 读取 sph/index.html 作为首页（视频号查询界面）
+	sphHtmlPath := filepath.Join("internal", "api", "sph", "index.html")
+	data, err := os.ReadFile(sphHtmlPath)
+	if err != nil || len(data) == 0 {
+		// 如果文件不存在，使用嵌入的版本
+		ctx.Header("Content-Type", "text/html; charset=utf-8")
+		ctx.String(http.StatusOK, "<html><body><h1>服务运行中</h1><p>SPH 页面文件缺失</p></body></html>")
+		return
 	}
-	// html := read_asset("inject/index.html", files.HTMLHome)
-	files := interceptor.Assets
-	// css := read_asset("inject/lib/weui.min.css", files.CSSWeui)
-	// html = strings.Replace(html, "/* INJECT_CSS */", css, 1)
-	var inserted_scripts string
-	cfg_byte, _ := json.Marshal(c.cfg)
-	inserted_scripts += fmt.Sprintf(`<script>var __wx_channels_config__ = %s; var __wx_channels_version__ = "local";</script>`, string(cfg_byte))
-	inserted_scripts += fmt.Sprintf(`<script>%s</script>`, read_asset("inject/lib/mitt.umd.js", files.JSMitt))
-	inserted_scripts += fmt.Sprintf(`<script>%s</script>`, read_asset("inject/src/eventbus.js", files.JSEventBus))
-	inserted_scripts += fmt.Sprintf(`<script>%s</script>`, read_asset("inject/src/utils.js", files.JSUtils))
-	inserted_scripts += fmt.Sprintf(`<script>%s</script>`, read_asset("inject/lib/floating-ui.core.1.7.4.min.js", files.JSFloatingUICore))
-	inserted_scripts += fmt.Sprintf(`<script>%s</script>`, read_asset("inject/lib/floating-ui.dom.1.7.4.min.js", files.JSFloatingUIDOM))
-	inserted_scripts += fmt.Sprintf(`<script>%s</script>`, read_asset("inject/lib/weui.min.js", files.JSWeui))
-	inserted_scripts += fmt.Sprintf(`<script>%s</script>`, read_asset("inject/lib/wui.umd.js", files.JSWui))
-	inserted_scripts += fmt.Sprintf(`<script>%s</script>`, read_asset("inject/src/components.js", files.JSComponents))
-	inserted_scripts += fmt.Sprintf(`<script>%s</script>`, read_asset("inject/src/downloader.js", files.JSDownloader))
 
-	// html = strings.Replace(html, "<!-- INJECT_JS -->", inserted_scripts, 1)
+	html := string(data)
+	// 替换 API 基础路径为当前服务地址
+	html = strings.Replace(html, "/api/fetch_video_profile", "/api/channels/parse_sph", -1)
+	// 将 POST 改为 GET（因为 parse_sph 是 GET 接口）
+	html = strings.Replace(html, `method: "POST"`, `method: "GET"`, -1)
+	html = strings.Replace(html, `headers: { "Content-Type": "application/json" },`, ``, -1)
+	html = strings.Replace(html, `body: JSON.stringify({ url: shareUrl }),`, ``, -1)
+
+	// 修改 fetch URL 拼接方式（从 body 参数改为 query 参数）
+	html = strings.Replace(html,
+		`${API_BASE}/fetch_video_profile`,
+		`${API_BASE}/channels/parse_sph?url=${encodeURIComponent(shareUrl)}`,
+		-1)
 
 	ctx.Header("Content-Type", "text/html; charset=utf-8")
-	ctx.String(http.StatusOK, "<html><body><div id=\"app\"></div></body></html>")
+	ctx.String(http.StatusOK, html)
 }
 
 func (c *APIClient) handlePlay(ctx *gin.Context) {

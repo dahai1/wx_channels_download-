@@ -7,6 +7,8 @@ import (
 )
 
 func (c *APIClient) SetupRoutes() {
+	// 首页
+	c.engine.GET("/", c.handleIndex)
 	// favicon
 	c.engine.GET("/favicon.ico", c.handleFavicon)
 	// 只在本地有的接口

@@ -1,6 +1,6 @@
 module wx_channel
 
-go 1.20
+go 1.21
 
 exclude (
 	github.com/andybalholm/brotli v1.2.0
@@ -55,7 +55,7 @@ require (
 
 replace github.com/GopeedLab/gopeed => ./pkg/gopeed
 
-replace github.com/ltaoo/echo => C:/Users/litao/Documents/workspace/echo
+// replace github.com/ltaoo/echo => C:/Users/litao/Documents/workspace/echo
 
 // replace github.com/qtgolang/SunnyNet => ./pkg/SunnyNet
 
