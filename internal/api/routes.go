@@ -71,6 +71,7 @@ func (c *APIClient) SetupRoutes() {
 	c.engine.GET("/mp/home", c.official.HandleOfficialAccountManagerHome)
 	// sph 接口
 	c.engine.GET("/api/channels/parse_sph", c.handleParseSph)
+	c.engine.POST("/api/cookie/yuanbao", c.handleSaveYuanbaoCookie)
 	// 其他
 	c.engine.GET("/api/status", c.handleStatus)
 	// c.engine.GET("/api/test", c.handleTest)

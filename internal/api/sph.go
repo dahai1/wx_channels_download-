@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -297,4 +299,39 @@ func cleanVideoURL(videoURL string) string {
 		return newURL
 	}
 	return ""
+}
+
+func (c *APIClient) handleSaveYuanbaoCookie(ctx *gin.Context) {
+	var req struct {
+		Cookie string `json:"cookie"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		result.Err(ctx, 400, "invalid request body")
+		return
+	}
+	req.Cookie = strings.TrimSpace(req.Cookie)
+	if req.Cookie == "" {
+		result.Err(ctx, 400, "cookie is empty")
+		return
+	}
+	// 保存到独立纯文本文件，避免 YAML 特殊字符导致写坏 config.yaml
+	cookiePath := filepath.Join(c.cfg.RootDir, "yuanbao_cookie.txt")
+	if err := os.WriteFile(cookiePath, []byte(req.Cookie), 0644); err != nil {
+		result.Err(ctx, 500, fmt.Sprintf("写入 Cookie 文件失败: %v", err))
+		return
+	}
+	// 同时更新内存中的值
+	c.cfg.CloudflareSphCookie = req.Cookie
+
+	log.Printf("[handleSaveYuanbaoCookie] cookie saved to %s (%d bytes), truncated: %s...",
+		cookiePath, len(req.Cookie), safeTruncate(req.Cookie, 40))
+	result.Ok(ctx, gin.H{"message": "Cookie 已保存"})
+}
+
+func safeTruncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	runes := []rune(s)
+	return string(runes[:max])
 }

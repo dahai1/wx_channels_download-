@@ -48,6 +48,16 @@ func NewAPIConfig(c *config.Config, remote_mode bool) *APIConfig {
 	mp_refresh_token := viper.GetString("mp.refreshToken")
 	mp_token_filepath := viper.GetString("mp.tokenFilepath")
 	cloudflare_sph_cookie := viper.GetString("cloudflare.sphCookie")
+
+	// 如果独立 cookie 文件存在，优先从文件读取（避免 YAML 特殊字符问题）
+	cookieFilePath := filepath.Join(c.RootDir, "yuanbao_cookie.txt")
+	if data, err := os.ReadFile(cookieFilePath); err == nil {
+		cookieFromFile := strings.TrimSpace(string(data))
+		if cookieFromFile != "" {
+			cloudflare_sph_cookie = cookieFromFile
+		}
+	}
+
 	api_cfg := &APIConfig{
 		Version:                      c.Version,
 		Mode:                         c.Mode,
