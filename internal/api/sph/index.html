@@ -1,253 +1,199 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Video Info Query</title>
-  <link rel="shortcut icon" href="/favicon.ico">
-  <link rel="icon" type="image/png" href="/icon.png">
+  <title>WX Channels Downloader</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow-y: auto; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f5f5f5;
-      color: #333;
+      /* Dark warm background - deep purple-blue with subtle gradient */
+      background: linear-gradient(160deg, #1a1625 0%, #2d2438 40%, #1f1a2e 70%, #161322 100%);
+      color: #e0dce6;
+      padding: 16px 16px 24px;
+      display: flex; flex-direction: column; align-items: center;
       min-height: 100vh;
-      padding: 24px;
     }
-    .container { max-width: 800px; margin: 0 auto; }
-    h1 { font-size: 20px; margin-bottom: 20px; text-align: center; }
-    .input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    /* Subtle ambient glow */
+    body::before {
+      content: ""; position: fixed; top: -20%; left: -10%;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(138,100,180,0.12) 0%, transparent 65%);
+      border-radius: 50%; pointer-events: none;
+    }
+    body::after {
+      content: ""; position: fixed; bottom: -25%; right: -10%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(90,60,130,0.1) 0%, transparent 65%);
+      border-radius: 50%; pointer-events: none;
+    }
+    .container { max-width: 680px; width: 100%; z-index: 1; }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 14px; }
+    .header h1 { font-size: 19px; font-weight: 700; color: #c4b8db; letter-spacing: 0.5px; }
+
+    /* Input Card */
+    .input-card {
+      background: rgba(35,30,45,0.85); border: 1px solid rgba(138,110,170,0.15); border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      backdrop-filter: blur(10px);
+      margin-bottom: 10px;
+    }
+    .input-row { display: flex; gap: 10px; }
     .input-row input {
-      flex: 1;
-      padding: 10px 14px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 14px;
-      outline: none;
+      flex: 1; padding: 11px 14px; border: 1.5px solid rgba(140,120,170,0.2); border-radius: 10px;
+      font-size: 14px; outline: none; transition: all 0.25s;
+      background: rgba(22,18,32,0.7); color: #e0dce6;
     }
-    .input-row input:focus { border-color: #07c160; }
+    .input-row input::placeholder { color: rgba(180,165,200,0.4); }
+    .input-row input:focus {
+      border-color: rgba(168,130,200,0.5);
+      background: rgba(28,23,40,0.9);
+      box-shadow: 0 0 0 3px rgba(168,130,200,0.08);
+    }
     .input-row button {
-      padding: 10px 24px;
-      border: none;
-      border-radius: 8px;
-      background: #07c160;
+      padding: 11px 24px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, #7c5cbf, #9b6dcc);
       color: #fff;
-      font-size: 14px;
-      cursor: pointer;
-      white-space: nowrap;
+      font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      transition: all 0.25s;
     }
-    .input-row button:hover { background: #06ad56; }
-    .input-row button:disabled { background: #a0d9b8; cursor: not-allowed; }
-    
+    .input-row button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 18px rgba(124,92,191,0.35);
+      background: linear-gradient(135deg, #8a6bc9, #a97ddb);
+    }
+    .input-row button:disabled { background: rgba(80,70,95,0.6); cursor: not-allowed; transform: none; box-shadow: none; }
+
     /* Cookie Section */
     .cookie-section {
-      background: #fffbe6;
-      border: 1px solid #ffe58f;
-      border-radius: 8px;
-      padding: 16px 20px;
-      margin-bottom: 16px;
+      border-radius: 8px; margin-top: 10px; cursor: pointer; user-select: none;
+      padding: 5px 10px; transition: all 0.3s ease;
     }
-    .cookie-section.hidden { display: none; }
-    .cookie-section.valid { background: #f6ffed; border-color: #b7eb8f; }
-    .cookie-section.error { background: #fff2f0; border-color: #ffccc7; }
-    .cookie-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-    .cookie-header strong { font-size: 14px; color: #333; }
-    .cookie-status {
-      font-size: 12px;
-      padding: 3px 10px;
-      border-radius: 4px;
-      font-weight: 500;
-    }
-    .cookie-status.ok { background: #52c41a; color: #fff; }
-    .cookie-status.expired { background: #ff4d4f; color: #fff; }
-    .cookie-input-area {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    .cookie-section.collapsed { background: transparent; }
+    .cookie-section.hidden { display: none !important; }
+    .cookie-section.error { background: rgba(255,77,79,0.1); border: 1px solid rgba(255,77,79,0.25); border-radius: 8px; animation: shake 0.4s ease; }
+    @keyframes shake { 0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)} }
+    .cookie-header { display: flex; align-items: center; justify-content: space-between; }
+    .cookie-header strong { font-size: 11px; color: rgba(196,184,219,0.35); }
+    .cookie-section:not(.collapsed) .cookie-header strong { color: #b8aac8; font-size: 12px; }
+    .cookie-status { font-size: 10px; padding: 1px 8px; border-radius: 20px; font-weight: 600; opacity: 0; transition: opacity 0.3s; }
+    .cookie-section.collapsed .cookie-status.ok { opacity: 1; background: #388e3c; color: #c8e6c9; }
+    .cookie-status.expired { background: #d32f2f; color: #ffcdd2; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.6} }
+    .cookie-input-area { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
     .cookie-input-area textarea {
-      width: 100%;
-      height: 80px;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-size: 13px;
-      font-family: monospace;
-      resize: vertical;
-      outline: none;
+      width: 100%; height: 58px; padding: 10px; border: 1.5px solid rgba(140,120,170,0.2); border-radius: 8px;
+      font-size: 11px; font-family: monospace; resize: vertical; outline: none;
+      background: rgba(22,18,32,0.7); color: #e0dce6;
     }
-    .cookie-input-area textarea:focus { border-color: #07c160; }
-    .cookie-actions {
-      display: flex;
-      gap: 8px;
+    .cookie-input-area textarea::placeholder { color: rgba(180,165,200,0.35); }
+    .cookie-input-area textarea:focus { border-color: rgba(168,130,200,0.45); background: rgba(28,23,40,0.9); }
+    .btn-save {
+      padding: 8px 18px; border: none; border-radius: 8px;
+      background: linear-gradient(135deg, #7c5cbf, #9b6dcc);
+      color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; width: 100%;
     }
-    .cookie-actions button {
-      padding: 8px 20px;
-      border: none;
-      border-radius: 6px;
-      font-size: 13px;
-      cursor: pointer;
-    }
-    .btn-save { background: #07c160; color: #fff; }
-    .btn-save:hover { background: #06ad56; }
-    .btn-toggle { background: #999; color: #fff; }
-    .btn-toggle:hover { background: #777; }
+    .btn-save:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(124,92,191,0.3); }
 
-    .status { text-align: center; color: #999; font-size: 14px; margin-bottom: 16px; }
-    .status.error { color: #e74c3c; }
+    /* Status */
+    .status { text-align: center; font-size: 13px; margin: 8px 0; min-height: 18px; color: rgba(196,184,219,0.5); }
+    .status.error { color: #ef9a9a; font-weight: 500; }
+
+    /* Result Card */
     .result {
-      background: #fff;
-      border-radius: 8px;
-      padding: 0;
-      overflow: hidden;
-      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      background: rgba(35,30,45,0.85); border: 1px solid rgba(138,110,170,0.15); border-radius: 12px;
+      overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      animation: slideUp 0.35s ease-out;
     }
-    .result-header {
-      padding: 14px 20px;
-      border-bottom: 1px solid #eee;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    .result-body { padding: 20px; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .result-body { padding: 14px 16px; }
+
     /* Video Card */
-    .video-card {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 20px;
+    .video-card { display: flex; gap: 14px; align-items: flex-start; }
+    .video-wrapper {
+      width: 220px; min-width: 220px; border-radius: 10px; overflow: hidden;
+      background: #111; box-shadow: 0 4px 16px rgba(0,0,0,.3); flex-shrink: 0;
     }
-    .video-card video {
-      width: 320px;
-      max-width: 100%;
-      border-radius: 8px;
-      background: #000;
-    }
+    .video-wrapper video { display: block; width: 100%; height: 124px; object-fit: cover; }
+    .meta { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+    .author-bar { display: flex; align-items: center; gap: 8px; }
+    .author-bar img.avatar { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid rgba(138,110,170,0.25); }
+    .author-bar .name { font-size: 14px; font-weight: 600; color: #ddd4ea; }
+    .desc { color: #a89bb8; line-height: 1.55; font-size: 13px; white-space: pre-wrap; word-break: break-word; max-height: 42px; overflow: hidden; text-overflow: ellipsis; }
+    .stats-row { display: flex; gap: 14px; padding-top: 8px; border-top: 1px solid rgba(138,110,170,0.12); margin-top: 2px; }
+    .stat-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: rgba(168,155,190,0.65); }
+    .stat-item svg { width: 14px; height: 14px; fill: rgba(150,135,175,0.55); }
     .download-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 12px;
-      padding: 8px 20px;
-      border: none;
-      border-radius: 8px;
-      background: #07c160;
-      color: #fff;
-      font-size: 14px;
-      cursor: pointer;
-      text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center; width: 100%;
+      padding: 10px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, #7c5cbf, #9b6dcc); color: #fff;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.25s; margin-top: 8px;
     }
-    .download-btn:hover { background: #06ad56; }
-    .video-card .meta {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      font-size: 14px;
-      min-width: 0;
-    }
-    .video-card .meta .author {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .video-card .meta .author img {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-    }
-    .video-card .meta .author .name { font-weight: 600; }
-    .video-card .meta .desc {
-      color: #666;
-      line-height: 1.6;
-      word-break: break-all;
-    }
-    .video-card .meta .stats {
-      display: flex;
-      gap: 16px;
-      color: #999;
-      font-size: 13px;
-    }
-    .video-card .meta .video-link a {
-      color: #07c160;
-      text-decoration: none;
-      font-size: 13px;
-      word-break: break-all;
-    }
+    .download-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124,92,191,0.35); }
+
     /* JSON Section */
-    details.json-section { margin-top: 4px; }
-    details.json-section summary {
-      padding: 10px 20px;
-      font-size: 13px;
-      color: #666;
-      cursor: pointer;
-      border-top: 1px solid #eee;
+    details.json-section { margin-top: 0; border-top: 1px solid rgba(138,110,170,0.12); }
+    details.json-section summary { padding: 10px 16px; font-size: 12px; color: rgba(168,155,190,0.5); cursor: pointer; }
+    details.json-section summary:hover { color: #a98fdc; }
+    details.json-section pre { font-size: 10px; line-height: 1.5; overflow-x: auto; padding: 10px 16px 14px; background: rgba(18,14,28,0.7); margin: 0; color: #9988aa; max-height: 120px; overflow-y: auto; border-radius: 0 0 12px 12px; }
+
+    /* Footer */
+    .footer { text-align: center; margin-top: 12px; font-size: 11px; color: rgba(150,135,175,0.35); z-index: 1; }
+    .footer a { color: rgba(150,135,175,0.55); text-decoration: none; }
+    .footer a:hover { color: #a98fdc; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(120,100,150,0.3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(120,100,150,0.5); }
+
+    /* Responsive */
+    @media (max-width: 520px) {
+      .video-card { flex-direction: column; }
+      .video-wrapper { width: 100%; min-width: 100%; }
+      .video-wrapper video { height: auto; aspect-ratio: 16/9; }
+      body { padding: 12px 10px 20px; }
+      .input-row { flex-direction: column; }
+      .input-row button { width: 100%; }
     }
-    details.json-section pre {
-      font-size: 12px;
-      line-height: 1.5;
-      overflow-x: auto;
-      padding: 16px 20px;
-      background: #fafafa;
-      margin: 0;
-    }
-    .footer {
-      text-align: center;
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid #eee;
-      font-size: 13px;
-      color: #999;
-    }
-    .footer a { color: #07c160; text-decoration: none; }
-    .footer a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>WX Channels Video Query</h1>
+    <div class="header"><h1>WX Channels Downloader</h1></div>
 
-    <!-- Cookie Management -->
-    <div id="cookieSection" class="cookie-section valid">
-      <div class="cookie-header">
-        <strong>Cookie Status</strong>
-        <span id="cookieStatusBadge" class="cookie-status ok">Valid</span>
+    <div class="input-card">
+      <div class="input-row">
+        <input id="urlInput" type="text" placeholder="Paste video link here..." autofocus>
+        <button id="fetchBtn" onclick="doFetch()">Query</button>
       </div>
-      <div class="cookie-input-area">
-        <textarea 
-          id="cookieInput" 
-          placeholder="Paste new cookie here, then click Update..."
-        ></textarea>
-        <div class="cookie-actions">
-          <button class="btn-toggle" onclick="toggleCookieInput()">Show/Hide</button>
+
+      <div id="cookieSection" class="cookie-section collapsed" onclick="toggleCookieSection()">
+        <div class="cookie-header">
+          <strong>Cookie Settings</strong>
+          <span id="cookieStatusBadge" class="cookie-status ok">Valid</span>
+        </div>
+        <div class="cookie-input-area" onclick="event.stopPropagation()">
+          <textarea id="cookieInput" placeholder="Paste new cookie here..."></textarea>
           <button class="btn-save" onclick="updateCookie()">Update Cookie</button>
         </div>
       </div>
     </div>
 
-    <!-- URL Input -->
-    <div class="input-row">
-      <input
-        id="urlInput"
-        type="text"
-        placeholder="Paste video link here, e.g. https://weixin.qq.com/sph/xxx"
-        autofocus
-      >
-      <button id="fetchBtn" onclick="doFetch()">Query</button>
-    </div>
     <div id="status" class="status" hidden></div>
     <div id="result" hidden></div>
-    <div class="footer">
-      <a href="https://github.com/ltaoo/wx_channels_download" target="_blank">https://github.com/ltaoo/wx_channels_download</a>
-    </div>
+
+    <div class="footer">Powered by wx_channels_download</div>
   </div>
 
   <script>
     const API_BASE = "/api";
-
     const urlInput = document.getElementById("urlInput");
     const fetchBtn = document.getElementById("fetchBtn");
     const statusEl = document.getElementById("status");
@@ -256,201 +202,73 @@
     const cookieStatusBadge = document.getElementById("cookieStatusBadge");
     const cookieInput = document.getElementById("cookieInput");
 
-    urlInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") doFetch();
-    });
+    urlInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doFetch(); });
 
-    function toggleCookieInput() {
-      const textarea = cookieInput;
-      textarea.style.display = textarea.style.display === "none" ? "block" : "none";
+    function toggleCookieSection() {
+      const collapsed = cookieSection.classList.toggle('collapsed');
+      cookieSection.querySelector('.cookie-input-area').style.display = collapsed ? 'none' : 'flex';
     }
+    (function(){ if(cookieSection.classList.contains('collapsed')) cookieSection.querySelector('.cookie-input-area').style.display='none'; })();
 
     async function updateCookie() {
       const cookie = cookieInput.value.trim();
-      if (!cookie) {
-        showStatus("Please paste cookie first", "error");
-        return;
-      }
-      
+      if (!cookie) return showStatus("Please paste cookie first", "error");
       try {
-        showStatus("Updating cookie...", "");
-        const resp = await fetch(`${API_BASE}/cookie/yuanbao`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cookie }),
-        });
+        showStatus("Updating...", "");
+        const resp = await fetch(`${API_BASE}/cookie/yuanbao`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({cookie}) });
         const data = await resp.json();
-        if (!resp.ok || data.code !== 0) throw new Error(data.msg || data.error || "Update failed");
-        
-        // Update UI
-        setCookieStatus(true);
-        showStatus("Cookie updated! Try query again.", "");
-        cookieInput.value = "";
-      } catch (err) {
-        showStatus("Update failed: " + err.message, "error");
-      }
+        if (!resp.ok || data.code !== 0) throw new Error(data.msg || data.error || "Failed");
+        setCookieStatus(true); showStatus("Updated!", ""); cookieInput.value="";
+      } catch(e) { showStatus("Failed: " + e.message, "error"); }
     }
 
     function setCookieStatus(valid) {
-      if (valid) {
-        cookieSection.className = "cookie-section valid";
-        cookieStatusBadge.className = "cookie-status ok";
-        cookieStatusBadge.textContent = "Valid";
-      } else {
-        cookieSection.className = "cookie-section error";
-        cookieStatusBadge.className = "cookie-status expired";
-        cookieStatusBadge.textContent = "Expired / Invalid";
-      }
+      if(valid) { cookieSection.className="cookie-section collapsed"; cookieStatusBadge.className="cookie-status ok"; cookieStatusBadge.textContent="Valid"; cookieSection.querySelector('.cookie-input-area').style.display='none'; }
+      else { cookieSection.className="cookie-section error"; cookieSection.querySelector('.cookie-input-area').style.display='flex'; cookieStatusBadge.className="cookie-status expired"; cookieStatusBadge.textContent="Expired"; }
     }
 
     function isCookieInvalid(data) {
-      // Check for type: 2 error or empty data
-      try {
-        const innerData = data.data && (data.data.data || data.data);
-        const errMsg = innerData ? innerData.errMsg : null;
-        
-        // type === 2 means cookie invalid
-        if (errMsg && errMsg.type === 2) return true;
-        
-        // Check if video data is empty (no videoUrl)
-        if (innerData && innerData.feedInfo) {
-          const fi = innerData.feedInfo;
-          if (!fi.videoUrl && !fi.h264VideoInfo?.videoUrl && !fi.h265VideoInfo?.videoUrl) {
-            return true;
-          }
-        }
-      } catch(e) {}
-      return false;
+      try { const d=data.data&&(data.data.data||data.data),e=d?d.errMsg:null; if(e&&e.type===2)return true; if(d&&d.feedInfo){const fi=d.feedInfo;if(!fi.videoUrl&&!fi.h264VideoInfo?.videoUrl&&!fi.h265VideoInfo?.videoUrl)return true;} } catch(x){} return false;
     }
 
     async function doFetch() {
-      const shareUrl = urlInput.value.trim();
-      if (!shareUrl) return;
-
-      fetchBtn.disabled = true;
-      resultEl.hidden = true;
-      showStatus("Querying...", "");
-
-      try {
-        const resp = await fetch(`${API_BASE}/channels/parse_sph?url=${encodeURIComponent(shareUrl)}`);
-        const data = await resp.json();
-        
-        if (!resp.ok || data.code !== 0) {
-          throw new Error(data.msg || data.error || resp.statusText);
-        }
-        
-        // Check cookie status
-        if (isCookieInvalid(data)) {
-          setCookieStatus(false);
-          showStatus("Cookie may be expired - please update below", "error");
-        } else {
-          setCookieStatus(true);
-          showStatus("", "");
-        }
-        
+      const u=urlInput.value.trim(); if(!u)return;
+      fetchBtn.disabled=true; resultEl.hidden=true; showStatus("Querying...","");
+      try{
+        const r=await fetch(API_BASE+"/channels/parse_sph?url="+encodeURIComponent(u)),data=await r.json();
+        if(!r.ok||data.code!==0)throw new Error(data.msg||data.error||r.statusText);
+        isCookieInvalid(data)?(setCookieStatus(false),showStatus("Cookie expired","error")):(setCookieStatus(true),showStatus("", ""));
         renderResult(data);
-      } catch (err) {
-        showStatus(err.message, "error");
-      } finally {
-        fetchBtn.disabled = false;
-      }
+      }catch(e){showStatus(e.message,"error");}finally{fetchBtn.disabled=false;}
     }
 
-    function showStatus(msg, cls) {
-      statusEl.textContent = msg;
-      statusEl.className = "status" + (cls ? " " + cls : "");
-      statusEl.hidden = !msg;
+    function showStatus(msg,cls){statusEl.textContent=msg;statusEl.className="status"+(cls?" "+cls:"");statusEl.hidden=!msg;}
+
+    function renderResult(feed){
+      const innerData=feed.data&&(feed.data.data||feed.data),fi=innerData&&innerData.feedInfo,ai=innerData&&innerData.authorInfo;
+      let h='<div class="result"><div class="result-body">';
+      if(fi){
+        const url=fi.h264VideoInfo?.videoUrl||fi.h265VideoInfo?.videoUrl||fi.videoUrl||"";
+        h+='<div class="video-card">';
+        if(url)h+='<div class="video-wrapper"><video src="'+esc(url)+'" poster="'+esc(fi.coverUrl)+'" controls preload="metadata"></video></div>';
+        h+='<div class="meta">';
+        if(ai)h+='<div class="author-bar"><img class="avatar" src="'+esc(ai.headImgUrl)+'" onerror="this.style.display=\'none\'"><span class="name">'+esc(ai.nickname)+"</span></div>";
+        if(fi.description)h+='<div class="desc">'+esc(fi.description)+'</div>';
+        h+='<div class="stats-row">';
+        [{i:'<svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>',l:'Like'},{i:'<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',l:'Heart'},{i:'<svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>',l:'Share'},{i:'<svg viewBox="0 0 24 24"><path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18z"/></svg>',l:'Comment'}].forEach(s=>{if(fi[s.l[0].toLowerCase()+"CountFmt"])h+='<div class="stat-item">'+s.i+' '+s.l+' '+esc(fi[s.l[0].toLowerCase()+"CountFmt"])+"</div>";});
+        h+='</div>';if(url)h+='<button class="download-btn" data-video-url="'+esc(url)+'" data-desc="'+esc(fi.description||'')+'" data-createtime="'+esc(fi.createtime||'')+'" onclick="downloadVideoFromBtn(this)">Download Video</button>';
+        h+='</div></div>';}
+      h+='</div><details class="json-section"><summary>Raw JSON</summary><pre>'+esc(JSON.stringify(feed,null,2))+'</pre></details></div>';
+      resultEl.innerHTML=h; resultEl.hidden=false;
     }
 
-    function renderResult(feed) {
-      const innerData = feed.data && (feed.data.data || feed.data);
-      const fi = innerData && innerData.feedInfo;
-      const ai = innerData && innerData.authorInfo;
-
-      let html = '<div class="result"><div class="result-header">Query Result</div><div class="result-body">';
-
-      if (fi) {
-        const bestVideoUrl = fi.h264VideoInfo?.videoUrl || fi.h265VideoInfo?.videoUrl || fi.videoUrl || "";
-        html += '<div class="video-card">';
-        if (bestVideoUrl) {
-          html += `<video src="${esc(bestVideoUrl)}" poster="${esc(fi.coverUrl)}" controls preload="metadata"></video>`;
-        }
-        html += '<div class="meta">';
-        if (ai) {
-          html += '<div class="author">';
-          html += `<img src="${esc(ai.headImgUrl)}" alt="" onerror="this.style.display='none'">`;
-          html += `<span class="name">${esc(ai.nickname)}</span>`;
-          if (ai.authIconUrl) html += `<img src="${esc(ai.authIconUrl)}" style="width:16px;height:16px" onerror="this.style.display='none'">`;
-          html += '</div>';
-        }
-        if (fi.description) html += `<div class="desc">${esc(fi.description)}</div>`;
-        html += '<div class="stats">';
-        if (fi.likeCountFmt) html += `<span>Like ${esc(fi.likeCountFmt)}</span>`;
-        if (fi.favCountFmt) html += `<span>Heart ${esc(fi.favCountFmt)}</span>`;
-        if (fi.forwardCountFmt) html += `<span>Share ${esc(fi.forwardCountFmt)}</span>`;
-        if (fi.commentCountFmt) html += `<span>Comment ${esc(fi.commentCountFmt)}</span>`;
-        html += '</div>';
-        if (bestVideoUrl) html += `<div><button class="download-btn" data-video-url="${esc(bestVideoUrl)}" data-desc="${esc(fi.description || '')}" data-createtime="${esc(fi.createtime || '')}" onclick="downloadVideoFromBtn(this)">Download Video</button></div>`;
-        if (bestVideoUrl) html += `<div class="video-link"><a href="${esc(bestVideoUrl)}" target="_blank">Video Link</a></div>`;
-        html += '</div></div>';
-      }
-
-      html += '</div>';
-
-      // JSON Detail
-      html += '<details class="json-section"><summary>Raw JSON Response</summary>';
-      html += `<pre>${esc(JSON.stringify(feed, null, 2))}</pre>`;
-      html += '</details>';
-
-      html += '</div>';
-      resultEl.innerHTML = html;
-      resultEl.hidden = false;
+    function downloadVideoFromBtn(b){downloadVideo(b.getAttribute("data-video-url"),b.getAttribute("data-desc"),b.getAttribute("data-createtime"));}
+    async function downloadVideo(url,desc,ct){
+      try{ showStatus("Downloading...",""); const r=await fetch(url);if(!r.ok)throw new Error("Download failed"); const blob=await r.blob(),u=URL.createObjectURL(blob),a=document.createElement("a"); a.href=u;a.download=sanitizeFilename(desc,ct)||"video.mp4";document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);showStatus("",""); }
+      catch(e){showStatus("Download failed: "+e.message,"error");}
     }
-
-    function downloadVideoFromBtn(btn) {
-      downloadVideo(
-        btn.getAttribute("data-video-url"),
-        btn.getAttribute("data-desc"),
-        btn.getAttribute("data-createtime")
-      );
-    }
-
-    async function downloadVideo(url, description, createtime) {
-      try {
-        showStatus("Downloading...", "");
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error("Download failed");
-        const blob = await resp.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = sanitizeFilename(description, createtime) || "video.mp4";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-        showStatus("", "");
-      } catch (err) {
-        showStatus("Download failed: " + err.message, "error");
-      }
-    }
-
-    function sanitizeFilename(desc, createtime) {
-      if (desc) return desc.replace(/[\\/:*?"<>|]/g, "").trim().slice(0, 200) + ".mp4";
-      if (createtime) {
-        const d = new Date(Number(createtime) * 1000);
-        const pad = (n) => String(n).padStart(2, "0");
-        return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.mp4`;
-      }
-      return "";
-    }
-
-    function esc(s) {
-      if (!s) return "";
-      const div = document.createElement("div");
-      div.textContent = s;
-      return div.innerHTML;
-    }
+    function sanitizeFilename(desc,ct){ if(desc)return desc.replace(/[\\/:*?"<>|]/g,"").trim().slice(0,200)+".mp4"; if(ct){const d=new Date(Number(ct)*1000),p=n=>String(n).padStart(2,"0");return d.getFullYear()+""+p(d.getMonth()+1)+""+p(d.getDate())+"_"+p(d.getHours())+""+p(d.getMinutes())+""+p(d.getSeconds())+".mp4";}return ""; }
+    function esc(s){if(!s)return"";const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
   </script>
 </body>
 </html>
