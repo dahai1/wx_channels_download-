@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"archive/zip"
@@ -778,25 +778,20 @@ func (c *APIClient) handleClearTasks(ctx *gin.Context) {
 }
 
 func (c *APIClient) handleIndex(ctx *gin.Context) {
-	// 读取 sph/index.html 作为首页（视频号查询界面）
-	sphHtmlPath := filepath.Join("internal", "api", "sph", "index.html")
-	data, err := os.ReadFile(sphHtmlPath)
-	if err != nil || len(data) == 0 {
-		// 如果文件不存在，使用嵌入的版本
+	// Use embedded SPH query page
+	html := string(files.HTMLSph)
+	if len(html) < 100 {
 		ctx.Header("Content-Type", "text/html; charset=utf-8")
-		ctx.String(http.StatusOK, "<html><body><h1>服务运行中</h1><p>SPH 页面文件缺失</p></body></html>")
+		ctx.String(http.StatusOK, "<html><body><h1>Service Running</h1></body></html>")
 		return
 	}
 
-	html := string(data)
-	// 替换 API 基础路径为当前服务地址
 	html = strings.Replace(html, "/api/fetch_video_profile", "/api/channels/parse_sph", -1)
-	// 将 POST 改为 GET（因为 parse_sph 是 GET 接口）
 	html = strings.Replace(html, `method: "POST"`, `method: "GET"`, -1)
 	html = strings.Replace(html, `headers: { "Content-Type": "application/json" },`, ``, -1)
-	html = strings.Replace(html, `body: JSON.stringify({ url: shareUrl }),`, ``, -1)
+	html = strings.Replace(html, `body: JSON.stringify({ url: shareUrl })`, ``, -1)
 
-	// 修改 fetch URL 拼接方式（从 body 参数改为 query 参数）
+	// Fix fetch URL from POST body to GET query param
 	html = strings.Replace(html,
 		`${API_BASE}/fetch_video_profile`,
 		`${API_BASE}/channels/parse_sph?url=${encodeURIComponent(shareUrl)}`,

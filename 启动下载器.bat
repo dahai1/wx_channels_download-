@@ -1,9 +1,11 @@
 @echo off
 chcp 65001 >nul
-echo Starting WX Channels Downloader...
+title WX Video Downloader
 
-:: Open browser after 3 seconds
-start /b cmd /c "timeout /t 3 /nobreak >nul && start http://127.0.0.1:2022"
+:: Open browser after 2 seconds
+start /b cmd /c "timeout /t 2 /nobreak >nul && start http://127.0.0.1:2022"
 
-go run main.go
+:: Start service
+"%~dp0WX_Video_Downloader.exe" server
+
 pause
